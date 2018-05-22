@@ -37,24 +37,38 @@ public class ZkTest extends TestCase {
 //		int command = CMD_CONNECT;
 //		String command_string = "";
 //		int chksum = 0;
-//		int session_id = 0;
+//		int session_id = 6579;
 //		int reply_id = -1 + USHRT_MAX;
-		// byte[] s = zk.createHeader(command, chksum, session_id, reply_id,
-		// command_string);
+//		byte[] s1 = zk.createHeader(CMD_CONNECT, 0, 0, reply_id,command_string);
+//		System.out.println();
+////		for (byte b : s1) {
+////			System.out.format("0x%x ", b);
+////		}
+//		byte[] s2 = zk.createHeader(CMD_VERSION, 0, session_id, 1,command_string);
+//		System.out.println();
+//		for (byte b : s2) {
+//			System.out.format("0x%x ", b);
+//		}
 		try {
-			String bytes = zk.executeCmd(CMD_CONNECT, "",(status,data)->{
-				for (byte b : data.array()) {
-					System.out.format("0x%x ", b);
-				}
-				return "";
-			});
+			System.out.println(zk.connect());
+//			System.out.println(zk.version());
+//			System.out.println(zk.platformVersion());
+			System.out.println(zk.getUser());
+//			String bytes = zk.executeCmd(CMD_CONNECT, "",(status,data)->{
+//				for (byte b : data.array()) {
+//					System.out.format("0x%x ", b);
+//				}
+//				return "";
+//			});
 //			for (byte b : bytes) {
 //				System.out.format("0x%x ", b);
 //			}
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
+//			 TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		
+		
 //		System.out.println(s);
 		assertTrue(true);
 	}
