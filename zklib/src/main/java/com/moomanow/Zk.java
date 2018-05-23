@@ -24,6 +24,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import com.moomanow.model.Attendance;
 import com.moomanow.model.User;
 
 public class Zk {
@@ -59,24 +60,24 @@ public class Zk {
 		byte[] bufRev = new byte[1024];
 		DatagramPacket receivePacket = new DatagramPacket(bufRev, bufRev.length);
 		clientSocket.receive(receivePacket);
-		String received = new String(receivePacket.getData(), 0, receivePacket.getLength());
-		for (byte b : receivePacket.getData()) {
-			System.out.format("0x%x ", b);
-		}
-		System.out.println(received);
+//		String received = new String(receivePacket.getData(), 0, receivePacket.getLength());
+//		for (byte b : receivePacket.getData()) {
+//			System.out.format("0x%x ", b);
+//		}
+//		System.out.println(received);
 		ByteBuffer buffer = ByteBuffer.allocate(receivePacket.getLength()).order(ByteOrder.LITTLE_ENDIAN)
 				.put(receivePacket.getData(), 0, receivePacket.getLength());
 		session_id = Short.toUnsignedInt(buffer.getShort(4));
 		reply_id = Short.toUnsignedInt(buffer.getShort(6));
-		System.out.println("session_id :" + session_id);
-		System.out.println("reply_id :" + reply_id);
+//		System.out.println("session_id :" + session_id);
+//		System.out.println("reply_id :" + reply_id);
 		int comBack = checkValid(buffer);
 		if (CMD_ACK_OK == comBack) {
 			return zkCallBack.callBack(true, buffer);
 		} else if (CMD_PREPARE_DATA == comBack) {
 			long size = Integer.toUnsignedLong(buffer.getInt(8));
 			ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-			for (int i = 0; i < size; i+=1024) {
+			for (long i = size; i > 0; i-=1024) {
 				byte[] bufRevApp = new byte[1032];
 				DatagramPacket receivePacketApp = new DatagramPacket(bufRevApp, bufRevApp.length);
 				clientSocket.receive(receivePacketApp);
@@ -86,6 +87,11 @@ public class Zk {
 				
 				byteArrayOutputStream.write(receivePacketApp.getData(),8,receivePacketApp.getLength()-8);
 			}
+			System.out.println("size:"+size);
+			System.out.println("size data:"+byteArrayOutputStream.size());
+			byte[] bufRevApp = new byte[8];
+			DatagramPacket receivePacketApp = new DatagramPacket(bufRevApp, bufRevApp.length);
+			clientSocket.receive(receivePacketApp);
 			byte[] bufRevAppOut  = byteArrayOutputStream.toByteArray();
 			return zkCallBack.callBack(true, ByteBuffer.allocate(bufRevAppOut.length).order(ByteOrder.LITTLE_ENDIAN).put(bufRevAppOut, 0, bufRevAppOut.length));
 		} else
@@ -183,40 +189,59 @@ public class Zk {
 	// return null;
 	// });
 	// }
-	private final int userdata_size = 72;
-
+	private final int userDataSize = 72;
+	private final int offsetUserData = 3;
 	public List<User> getUser() throws IOException {
 		byte[] bytes = new byte[] { (byte) 0x05 };
 		
 		return executeCmd(CMD_USERTEMP_RRQ, new String(bytes), (status, data) -> {
 			
-			System.out.println();
-			for (byte b : data.array()) {
-				System.out.format("0x%x ", b);
-			}
 			List<User> users = new ArrayList<>();
-			int offset = 3;
+			int offset = offsetUserData;
 			byte[] dataUserByte = data.array();
 			int length = dataUserByte.length;
 			
-			while(offset<length) {
-				ByteBuffer userByteBuffer  = ByteBuffer.allocate(userdata_size).put(data.array(), offset, userdata_size);
-				System.out.println();
-				System.out.println(new String(userByteBuffer.array()));
+			while(offset+userDataSize<=length) {
+				ByteBuffer userByteBuffer  = ByteBuffer.allocate(userDataSize).put(data.array(), offset, userDataSize);
 				User user = User.encodeUser(userByteBuffer);
-				System.out.println(user);
-				for (byte b : userByteBuffer.array()) {
-					System.out.format("0x%X ", b);
-				}
 				
-				offset = offset+userdata_size;
+				offset = offset+userDataSize;
 				users.add(user);
 			}
-			System.out.println(users);
+//			System.out.println(users);
 			return users;
 		});
-
-		// return null;
+	}
+	
+	private final int attendanceDataSize = 40;
+	private final int offsetAttendanceData = 6;
+	public List<Attendance> getAttendance() throws IOException {
+//		byte[] bytes = new byte[] { (byte) 0x05 };
+		
+		return executeCmd(CMD_ATTLOG_RRQ, "", (status, data) -> {
+			
+			List<Attendance> attendances = new ArrayList<>();
+			int offset = offsetAttendanceData;
+			byte[] dataUserByte = data.array();
+			int length = dataUserByte.length;
+			
+			while(length -offset>0) {
+				int size = attendanceDataSize;
+				if(offset+attendanceDataSize >= length) {
+					size = length -offset;
+				}
+				ByteBuffer userByteBuffer  = ByteBuffer.allocate(size).put(data.array(), offset, size);
+				Attendance attendance = Attendance.encodeAttendance(userByteBuffer);
+				
+				offset = offset+attendanceDataSize;
+				attendances.add(attendance);
+			}
+//			System.out.println(offset+attendanceDataSize);
+//			System.out.println(offset);
+//			System.out.println(length);
+//			System.out.println(attendances);
+			return attendances;
+		});
 	}
 
 	public String delUser() throws IOException {
@@ -242,25 +267,6 @@ public class Zk {
 
 		int chksum = 0;
 
-		// int size = p.remaining();
-		// while (size>1) {
-		// p.getChar()
-		// chksum += unpack('H', pack('BB', p[0], p[1]))[0]
-		// type type = (type) it.next();
-		// size -= 2;
-		// }
-		//
-		// while (chksum > USHRT_MAX) {
-		// chksum -= USHRT_MAX;
-		// }
-		// chksum = ~chksum;
-		// while (chksum < 0) {
-		// chksum += USHRT_MAX;
-		// }
-
-		// if(size==1) {
-		// chksum = chksum + p[-1];
-		// }
 		for (int i = 0; i < p.remaining(); i += 2) {
 			if (i == p.remaining() - 1) {
 				chksum += p.get(i);
@@ -289,24 +295,24 @@ public class Zk {
 			byteBuffer = byteBuffer.put(i + 8, b);
 		}
 
-		byte[] bytes = byteBuffer.array();
-		for (byte b : bytes) {
-			System.out.format("0x%x ", b);
-		}
+//		byte[] bytes = byteBuffer.array();
+//		for (byte b : bytes) {
+//			System.out.format("0x%x ", b);
+//		}
 		byteBuffer = byteBuffer.putChar(2, (char) createChkSum(byteBuffer));
-		System.out.println();
-		bytes = byteBuffer.array();
-		for (byte b : bytes) {
-			System.out.format("0x%x ", b);
-		}
+//		System.out.println();
+//		bytes = byteBuffer.array();
+//		for (byte b : bytes) {
+//			System.out.format("0x%x ", b);
+//		}
 		reply_id = (reply_id + 1) % USHRT_MAX;
 		byteBuffer = byteBuffer.putChar(6, (char) reply_id);
-		System.out.println();
-		bytes = byteBuffer.array();
-		for (byte b : bytes) {
-			System.out.format("0x%x ", b);
-		}
-		return bytes;
+//		System.out.println();
+//		bytes = byteBuffer.array();
+//		for (byte b : bytes) {
+//			System.out.format("0x%x ", b);
+//		}
+		return byteBuffer.array();
 	}
 
 }

@@ -1,6 +1,9 @@
 package com.moomanow.model;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+
+import com.moomanow.utils.ByteUtils;
 
 public class User {
 	
@@ -54,11 +57,17 @@ public class User {
 		user.setUid(Short.toUnsignedInt(buffer.getShort(0)));
 		user.setRole(Short.toUnsignedInt(buffer.getShort(2)));
 		byte[] data = buffer.array();
-		user.setPassword(new String(data,4,12));
-		user.setName(new String(data,12,24));
-		long cardno = Integer.toUnsignedLong(buffer.getInt(36));
-		user.setCardno(cardno);
-		user.setUserid(new String(data,49,23));
+		byte[] passwordByte =  Arrays.copyOfRange(data, 4, 12 );
+		byte[] nameByte =  Arrays.copyOfRange(data, 12, 40 );
+		byte[] userIdByte =  Arrays.copyOfRange(data, 40, 71 );
+		byte[] pattern = new byte[] {0x00};
+		passwordByte = ByteUtils.split(pattern , passwordByte).get(0);
+		nameByte = ByteUtils.split(pattern , nameByte).get(0);
+		user.setPassword(new String(passwordByte));
+		user.setName(new String(nameByte));
+//		long cardno = Integer.toUnsignedLong(buffer.getInt(36));
+//		user.setCardno(cardno);
+		user.setUserid(new String(userIdByte));
 		return user;
 	}
 	@Override
